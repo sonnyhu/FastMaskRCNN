@@ -119,7 +119,7 @@ ext_modules = [
         include_dirs = [numpy_include]
     ),
     Extension(
-      "boxes.cython_bbox_transform",
+        "boxes.cython_bbox_transform",
       ["boxes/cython_bbox_transform.pyx"],
       extra_compile_args={'gcc': ["-Wno-cpp", "-Wno-unused-function"]},
       include_dirs=[numpy_include]

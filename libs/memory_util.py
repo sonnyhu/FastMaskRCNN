@@ -7,38 +7,38 @@ import tensorflow as tf
 debug_messages = False
 
 def vlog(level):
-  os.environ['TF_CPP_MIN_VLOG_LEVEL'] = str(level)
+    os.environ['TF_CPP_MIN_VLOG_LEVEL'] = str(level)
 
 # this helper is here in case we later want to capture huge stderr that doesn't fit in RAM
 class TemporaryFileHelper:
-  """Provides a way to fetch contents of temporary file.""" 
-  def __init__(self, temporary_file):
-    self.temporary_file = temporary_file
-  def getvalue(self):
-    return open(self.temporary_file.name).read() 
+    """Provides a way to fetch contents of temporary file.""" 
+    def __init__(self, temporary_file):
+        self.temporary_file = temporary_file
+    def getvalue(self):
+        return open(self.temporary_file.name).read() 
 
 
 STDOUT=1
 STDERR=2
 class capture_stderr:
-  """Utility to capture output, use as follows
-     with util.capture_stderr() as stderr:
-        sess = tf.Session()
-    print("Captured:", stderr.getvalue()).
-    """
+    """Utility to capture output, use as follows
+       with util.capture_stderr() as stderr:
+          sess = tf.Session()
+      print("Captured:", stderr.getvalue()).
+      """
 
-  def __init__(self, fd=STDERR):
-    self.fd = fd
-    self.prevfd = None
+    def __init__(self, fd=STDERR):
+        self.fd = fd
+        self.prevfd = None
 
-  def __enter__(self):
-    t = tempfile.NamedTemporaryFile()
-    self.prevfd = os.dup(self.fd)
-    os.dup2(t.fileno(), self.fd)
-    return TemporaryFileHelper(t)
+    def __enter__(self):
+        t = tempfile.NamedTemporaryFile()
+        self.prevfd = os.dup(self.fd)
+        os.dup2(t.fileno(), self.fd)
+        return TemporaryFileHelper(t)
 
-  def __exit__(self, exc_type, exc_value, traceback):
-    os.dup2(self.prevfd, self.fd)
+    def __exit__(self, exc_type, exc_value, traceback):
+        os.dup2(self.prevfd, self.fd)
 
 
 ################################################################################
@@ -88,7 +88,7 @@ def _parse_logline(l):
         assert m, l
         d = m.groupdict()
         d["type"] = "MemoryLogTensorOutput"
-            
+
     elif 'MemoryLogTensorAllocation' in l:
         m = tensor_allocation_regex.search(l)
 
@@ -127,7 +127,7 @@ def _parse_logline(l):
         d["type"] = "MemoryLogRawDeallocation"
     else:
         assert False, "Unknown log line: "+l
-        
+
     if not "allocation_id" in d:
         d["allocation_id"] = "-1"
 
@@ -137,12 +137,12 @@ def _parse_logline(l):
 def memory_timeline(log):
     if hasattr(log, 'getvalue'):
         log = log.getvalue()
-    
+
     def unique_alloc_id(line):
         if line["allocation_id"] == "-1":
             return "-1"
         return line["allocation_id"]+"-"+line["allocator_name"]
-    
+
     def get_alloc_names(line):
         alloc_id = unique_alloc_id(line)
         for entry in reversed(allocation_map.get(alloc_id, [])):
@@ -210,9 +210,9 @@ def peak_memory(log, gpu_only=False):
         total_memory += allocated_bytes
         peak_memory = max(total_memory, peak_memory)
     return peak_memory
-    
+
 def print_memory_timeline(log, gpu_only=False, ignore_less_than_bytes=0):
-      
+
     total_memory = 0
     for record in memory_timeline(log):
         i, kernel_name, allocated_bytes, allocator_type = record
@@ -227,7 +227,7 @@ def print_memory_timeline(log, gpu_only=False, ignore_less_than_bytes=0):
 
 import matplotlib.pyplot as plt
 def plot_memory_timeline(log, gpu_only=False, ignore_less_than_bytes=1000):
-      
+
     total_memory = 0
     timestamps = []
     data = []
@@ -235,7 +235,7 @@ def plot_memory_timeline(log, gpu_only=False, ignore_less_than_bytes=1000):
     for record in memory_timeline(log):
         timestamp, kernel_name, allocated_bytes, allocator_type = record
         allocated_bytes = int(allocated_bytes)
-        
+
         if abs(allocated_bytes)<ignore_less_than_bytes:
             continue  # ignore small allocations
         if gpu_only:
@@ -254,49 +254,49 @@ def plot_memory_timeline(log, gpu_only=False, ignore_less_than_bytes=1000):
 ################################################################################
 
 def smart_initialize(variables=None, sess=None):
-  """Initializes all uninitialized variables in correct order. Initializers
-  are only run for uninitialized variables, so it's safe to run this multiple
-  times.
-  Args:
-      sess: session to use. Use default session if None.
-  """
+    """Initializes all uninitialized variables in correct order. Initializers
+    are only run for uninitialized variables, so it's safe to run this multiple
+    times.
+    Args:
+        sess: session to use. Use default session if None.
+    """
 
-  from tensorflow.contrib import graph_editor as ge
-  def make_initializer(var): 
-    def f():
-      return tf.assign(var, var.initial_value).op
-    return f
-  
-  def make_noop(): return tf.no_op()
+    from tensorflow.contrib import graph_editor as ge
+    def make_initializer(var): 
+        def f():
+            return tf.assign(var, var.initial_value).op
+        return f
 
-  def make_safe_initializer(var):
-    """Returns initializer op that only runs for uninitialized ops."""
-    return tf.cond(tf.is_variable_initialized(var), make_noop,
-                   make_initializer(var), name="safe_init_"+var.op.name).op
+    def make_noop(): return tf.no_op()
 
-  if not sess:
-    sess = tf.get_default_session()
-  g = tf.get_default_graph()
+    def make_safe_initializer(var):
+        """Returns initializer op that only runs for uninitialized ops."""
+        return tf.cond(tf.is_variable_initialized(var), make_noop,
+                       make_initializer(var), name="safe_init_"+var.op.name).op
 
-  if not variables:
-    variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-      
-  safe_initializers = {}
-  for v in variables:
-    safe_initializers[v.op.name] = make_safe_initializer(v)
-      
-  # initializers access variable vaue through read-only value cached in
-  # <varname>/read, so add control dependency to trigger safe_initializer
-  # on read access
-  for v in variables:
-    var_name = v.op.name
-    var_cache = g.get_operation_by_name(var_name+"/read")
-    ge.reroute.add_control_inputs(var_cache, [safe_initializers[var_name]])
+    if not sess:
+        sess = tf.get_default_session()
+    g = tf.get_default_graph()
 
-  sess.run(tf.group(*safe_initializers.values()))
-    
-  # remove initializer dependencies to avoid slowing down future variable reads
-  for v in variables:
-    var_name = v.op.name
-    var_cache = g.get_operation_by_name(var_name+"/read")
-    ge.reroute.remove_control_inputs(var_cache, [safe_initializers[var_name]])
+    if not variables:
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+
+    safe_initializers = {}
+    for v in variables:
+        safe_initializers[v.op.name] = make_safe_initializer(v)
+
+    # initializers access variable vaue through read-only value cached in
+    # <varname>/read, so add control dependency to trigger safe_initializer
+    # on read access
+    for v in variables:
+        var_name = v.op.name
+        var_cache = g.get_operation_by_name(var_name+"/read")
+        ge.reroute.add_control_inputs(var_cache, [safe_initializers[var_name]])
+
+    sess.run(tf.group(*safe_initializers.values()))
+
+    # remove initializer dependencies to avoid slowing down future variable reads
+    for v in variables:
+        var_name = v.op.name
+        var_cache = g.get_operation_by_name(var_name+"/read")
+        ge.reroute.remove_control_inputs(var_cache, [safe_initializers[var_name]])

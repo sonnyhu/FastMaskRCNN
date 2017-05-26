@@ -161,7 +161,7 @@ class mask_test(layer_test):
         # mask 
         with tf.Session() as sess:
             gt_masks = np.zeros((self.N, 100, 100), dtype=np.int32)
-         
+
             rois = self.gt_boxes[:, :4]
             rois = rois + np.random.randint(-5, 5, (self.N, 4))
             rois[rois < 0] = 0
@@ -230,7 +230,7 @@ class ROIAlign_test(layer_test):
                       int(b[1]):int(b[3]+1),
                       int(b[0]):int(b[2]+1),
                       :] = 1 
-                
+
             img = tf.constant(npimg)
             pooled_height = 5
             pooled_width = 5

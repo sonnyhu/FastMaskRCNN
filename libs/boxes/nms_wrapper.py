@@ -48,13 +48,13 @@ def nms_wrapper(scores, boxes, threshold = 0.7, class_sets = None):
     return res
 
 if __name__=='__main__':
-  
-  score = np.random.rand(10, 21)
-  boxes = np.random.randint(0, 100, (10, 21, 2))
-  s = np.random.randint(0, 100, (10, 21, 2))
-  s = boxes + s
-  boxes = np.concatenate((boxes, s), axis=2)
-  boxes = np.reshape(boxes, [boxes.shape[0], -1])
-  # score = np.reshape(score, [score.shape[0], -1])
-  res = nms_wrapper(score, boxes)
-  print (res)
+
+    score = np.random.rand(10, 21)
+    boxes = np.random.randint(0, 100, (10, 21, 2))
+    s = np.random.randint(0, 100, (10, 21, 2))
+    s = boxes + s
+    boxes = np.concatenate((boxes, s), axis=2)
+    boxes = np.reshape(boxes, [boxes.shape[0], -1])
+    # score = np.reshape(score, [score.shape[0], -1])
+    res = nms_wrapper(score, boxes)
+    print (res)

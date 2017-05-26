@@ -26,7 +26,7 @@ def preprocess_image(image, gt_boxes, gt_masks, is_training=False):
 
 
 def preprocess_for_training(image, gt_boxes, gt_masks):
-    
+
     ih, iw = tf.shape(image)[0], tf.shape(image)[1]
     ## random flipping
     coin = tf.to_float(tf.random_uniform([1]))[0]
@@ -88,7 +88,7 @@ def preprocess_for_test(image, gt_boxes, gt_masks):
 
     scale_ratio = tf.to_float(new_ih) / tf.to_float(ih)
     gt_boxes = preprocess_utils.resize_gt_boxes(gt_boxes, scale_ratio)
-    
+
     ## zero mean image
     image = tf.cast(image, tf.float32)
     image = image / 256.0
